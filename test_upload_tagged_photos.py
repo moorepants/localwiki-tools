@@ -36,16 +36,13 @@ def TestUploadWiki():
 
     def test_init(self):
 
-        uploader = ImageUploader(self.api_url, user_name=self.user_name,
-                                 api_key=self.api_key)
-
-        assert self.api._store['base_url'] == self.api_url
-        assert self.api._store['format'] == 'json'
-        assert sefl.api._store['session'].auth[0] == self.user_name
-        assert sefl.api._store['session'].auth[1] == self.api_key
+        assert self.uploader.api._store['base_url'] == self.api_url
+        assert self.uploader.api._store['format'] == 'json'
+        assert self.uploader.api._store['session'].auth[0] == self.user_name
+        assert self.uploader.api._store['session'].auth[1] == self.api_key
 
     def test_remove_tmp_dirs():
-        directories = ['localwikidir1', 'localwikidir1']
+        directories = ['localwikidir1', 'localwikidir2']
         for directory in directories:
             os.mkdir(os.path.join('/tmp', directory,
                                   self.uploader._tmp_dir_name))
@@ -68,12 +65,60 @@ def TestUploadWiki():
         for directory in directories:
             shutil.rmtree(os.path.join('/tmp', directory))
 
+    def test_find_localwiki_images(self):
+        pass
+
+    def test_find_localwiki_images_in_directory(self):
+
+        wiki_images = \
+            self.uploader.find_localwiki_images_in_directory(
+                self, '/tmp/localwiki')
+
+        expected_wiki_images = {'/tmp/localwiki/image.jpg':
+                                ['Upload Test Page']}
+
+        assert wiki_images == expected_wiki_images
+
+    def test_create_page(self):
+        # create a page that doesn't exist
+        page_name = 'This Page Does Not Exist'
+        page = self.uploader.create_page(page_name)
+
+        assert page['name'] == page_name
+        assert page['content'] == \
+            '<p>Please add some content to help describe this page.</p>'
+
+        self.api.page('This Page Does Not Exist').delete()
+
+        # create a page that does exist
+        page_name = 'Upload Test Page'
+        page = self.uploader.create_page(page_name)
+        assert page['name'] == page_name
+        assert page['content'] == "<p>The Upload Test Page.</p>"
+
     def test_find_files_in_page(self):
 
         assert find_files_in_page('this will never be the name of a page') is None
         files_in_page = find_files_in_page('Upload Test Page')
         assert files_in_page[0]['name'] = 'image.jpg'
         assert files_in_page[0]['slug'] = 'upload test page'
+
+    def test_file_exists_on_server(self):
+
+        assert not self.uploader.file_exists_on_server('booglediddly.png')
+        assert self.uploader.file_exists_on_server('image.jpg')
+
+    def test_rotate_image(self):
+
+        self.uploader.rotate_image(image_file_path)
+
+        directory, file_name = os.path.split(image_file_path)
+
+        rotated_file_path = os.path.join(directory, self.uploader._tmp_dir, file_name)
+        assert os.exists(rotated_file_path)
+
+        metadata = GExiv2.Metadata(rotated_file_path)
+        assert metadata['Exif.Image.Orientation'] == '1'
 
     def teardown():
         # remove the files attached to the test page
@@ -100,5 +145,3 @@ wiki_images = find_wiki_images(['dir1', 'dir2'])
 wiki_images['/tmp/cw/test_image.jpg'] == ['page:Test Page']
 
 check_if_file_exists(file_name)
-
-

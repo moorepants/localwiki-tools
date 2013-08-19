@@ -37,6 +37,8 @@ class ImageUploader(object):
         if api_key is None:
             api_key = getpass.getpass("What is your api_key?\n")
 
+        # TODO : The user name and api key may need to be passed to each
+        # post, put, patch, delete call as a url parameter instead of here.
         self.api = slumber.API(api_url, auth=(user_name, api_key))
 
     def upload(self, main_keyword, *directories, page_keyword_prefix="page:"):
