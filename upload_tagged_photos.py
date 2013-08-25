@@ -37,11 +37,9 @@ class ImageUploader(object):
         if api_key is None:
             api_key = getpass.getpass("What is your api_key?\n")
 
-        # TODO : The user name and api key may need to be passed to each
-        # post, put, patch, delete call as a url parameter instead of here.
-        self.api = slumber.API(api_url, auth=(user_name, api_key))
+        self.api = slumber.API(api_url)
 
-    def upload(self, main_keyword, *directories, page_keyword_prefix="page:"):
+    def upload(self, main_keyword, *directories, **kwargs):
         """Uploads all the new files in the specified directories with the
         proper tags to localwiki and creates new pages if needed.
 
@@ -63,7 +61,10 @@ class ImageUploader(object):
 
         self.directories = list(directories)
         self.main_keyword = main_keyword
-        self.page_keyword_prefix = page_keyword_prefix
+        if 'page_keyword_prefix' in kwargs.keys():
+            self.page_keyword_prefix = kwargs['page_keyword_prefix']
+        else:
+            self.page_keyword_prefix = "page:"
 
         wiki_images = self.find_localwiki_images()
 
@@ -71,11 +72,11 @@ class ImageUploader(object):
 
             for page_name in page_names:
 
-                page = create_page(page_name)
-
-                if not file_exists_on_server(os.path.split(file_path)[1]):
-                    upload_file(page, file_path)
-                    embed_image(page_name, image_name)
+                page = self.create_page(page_name)
+                image_name = os.path.split(file_path)[1]
+                if not self.file_exists_on_server(image_name):
+                    self.upload_image(page, file_path)
+                    self.embed_image(page_name, image_name)
                 else:
                     print("{} already exists on the localwiki.".format(file_path))
 
@@ -119,7 +120,8 @@ class ImageUploader(object):
 
         for file_name in file_names:
 
-            if True in [file_name.endswith(ext) for ext in_file_extensions]:
+            if True in [file_name.endswith(ext) for ext in
+                        self._file_extensions]:
                 metadata = GExiv2.Metadata(file_name)
                 keywords = \
                     metadata.get_tag_multiple('Iptc.Application2.Keywords')
@@ -156,9 +158,10 @@ class ImageUploader(object):
 
         try:
             return self.api.page(page_name).get()
-        except HTTPClientError:
+        except slumber.exceptions.HttpClientError:
             print("Creating the new page: {}".format(page_name))
-            return self.api.page.post(page_dict)
+            return self.api.page.post(page_dict, username=self.user_name,
+                    api_key=self.api_key)
 
     def find_files_in_page(self, page_name):
         """Returns a list of dictionaries, one for each file, attached to a
@@ -178,7 +181,7 @@ class ImageUploader(object):
         """
         try:
             slug = self.api.page(page_name).get()['slug']
-        except HTTPClientError:
+        except slumber.exceptions.HTTPClientError:
             return None
         else:
             return self.api.files.get(slug=slug)['objects']
@@ -247,7 +250,7 @@ class ImageUploader(object):
             rotated = True
 
         if metadata['Exif.Image.Orientation'] != '1' and not rotated:
-            rotate_image(file_path)
+            self.rotate_image(file_path)
             image = open(tmp_file_path, 'r')
         else:
             image = open(file_path, 'r')
@@ -257,8 +260,8 @@ class ImageUploader(object):
         # may need this instead:
         #self.api.file.post({'name': file_name, 'slug'=page['slug']},
                            #files={'file': image})
-        self.api.file.post(name=file_name, slug=page['slug'],
-                           files={'file': image})
+        self.api.file.post(name=file_name, slug=page['slug'], files={'file':
+            image}, username=self.user_name, api_key=self.api_key)
         print('Done.')
         image.close()
 
@@ -299,7 +302,8 @@ class ImageUploader(object):
         if (image_name in [f['name'] for f in files] and current_content not
                 in page_info['content']):
             return self.api.page(page_name).patch({'content':
-                                                   current_content + html})
+                current_content + html}, username=self.user_name,
+                api_key=self.api_key)
         else:
             print('Aborting image not embedding, do it manually.')
             return None
@@ -327,4 +331,4 @@ if __name__ == "__main__":
     else:
         kwargs = {}
 
-    uploader.upload(arg.keyword, *arg.directories, **kwargs)
+    uploader.upload(args.keyword, *args.directories, **kwargs)

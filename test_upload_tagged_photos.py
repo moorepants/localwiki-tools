@@ -1,23 +1,27 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+# builtin
 import os
 import shutil
-import getpass
+import ConfigParser
 
-from gi.repository import GExiv2
+# external
 import slumber
+from gi.repository import GExiv2
 
+# local
 from upload_tagged_photos import ImageUploader
 
 
-def TestUploadWiki():
+class TestUploadWiki():
 
-    url = "http://clevelandwiki.org/api/"
-    user_name = raw_input("What is your username?")
-    api_key = getpass.getpassword("What is your api_key?")
-
-    main_tag = 'cleveland wiki'
+    config = ConfigParser.ConfigParser()
+    config.read('test.cfg')
+    api_url = config.get('localwiki', 'api_url')
+    user_name = config.get('localwiki', 'user_name')
+    api_key = config.get('localwiki', 'api_key')
+    main_keyword = config.get('localwiki', 'main_keyword')
 
     test_page_names = ['Existing Upload Test Page',
                        'Non Existing Upload Test Page']
@@ -29,11 +33,9 @@ def TestUploadWiki():
                   ['photo-with-tags-02.jpg',
                    'photo-with-tags-02.png']]
 
-
     def setup(self):
 
-        self.api = slumber.API(self.url, auth=(self.user_name,
-                                               self.password))
+        self.api = slumber.API(self.api_url)
 
         # create directories with images, some with correct keywords
         for directory, test_page_name in zip(self.test_directories,
@@ -44,21 +46,32 @@ def TestUploadWiki():
                     metadata = GExiv2.Metadata(os.path.join(directory,
                                                             file_name))
                     metadata.set_tag_multiple('Iptc.Application2.Keywords',
-                                              [self.main_tag, 'page:' +
+                                              [self.main_keyword, 'page:' +
                                                test_page_name])
                     metadata.save_file()
 
         # create a test page that doesn't have the images on it
         page_dict = {"content": "<p>The Existing Upload Test Page.</p>",
-                     "name": self.test_page_name,
+                     "name": self.test_page_names[0],
                      }
-        test_page = self.api.page.post(page_dict)
-        test_page_slug = self.api.page(test_page['id'])['slug']
+        try:
+            self.api.page.post(page_dict, username=self.user_name,
+                               api_key=self.api_key)
+        except slumber.exceptions.HttpServerError:
+            self.api.page(page_dict['name']).delete(username=self.user_name,
+                                                   api_key=self.api_key)
+            self.api.page.post(page_dict, username=self.user_name,
+                               api_key=self.api_key)
 
-        file_path = 'test-dir-01/photo-with-tags-01.jpg'
+        test_page_slug = self.api.page(page_dict['name']).get()['slug']
+
+        file_path = os.path.join(self.test_directories[0],
+                                 self.test_files[0][0])
         with open(file_path, 'r') as f:
-            self.api.file.post(name=os.path.split(file_path)[1],
-                               slug=test_page_slug, files={'file': f})
+            self.api.file.post({'name': os.path.split(file_path)[1],
+                                'slug': test_page_slug}, files={'file': f},
+                               username=self.user_name,
+                               api_key=self.api_key)
 
         # TODO : create some images with the Exif such that the images have
         # to be rotated before upload.
@@ -71,17 +84,15 @@ def TestUploadWiki():
 
         assert self.uploader.api._store['base_url'] == self.api_url
         assert self.uploader.api._store['format'] == 'json'
-        assert self.uploader.api._store['session'].auth[0] == self.user_name
-        assert self.uploader.api._store['session'].auth[1] == self.api_key
 
-    def test_remove_tmp_dirs():
+    def test_remove_tmp_dirs(self):
         directories = ['localwikidir1', 'localwikidir2']
         for directory in directories:
             os.mkdir(os.path.join('/tmp', directory,
                                   self.uploader._tmp_dir_name))
         files = ['file1.jpg', 'file2.jpg']
         file_paths = []
-        for directory, file_name in zip(directores, files):
+        for directory, file_name in zip(directories, files):
             file_path = os.path.join('/tmp', directory,
                                      self.uploader._tmp_dir_name, file_name)
             with open(file_path, 'w') as f:
@@ -103,8 +114,9 @@ def TestUploadWiki():
         wiki_images = self.uploader.find_localwiki_images()
 
         expected_wiki_images = {}
-        for directory, page_name in zip(self.test_directories,
-                                        self.test_page_names):
+        for directory, page_name, file_names in zip(self.test_directories,
+                                                    self.test_page_names,
+                                                    self.test_files):
             file_paths = [os.path.join(directory, file_name) for file_name
                           in file_names]
             expected_wiki_images.update(dict(zip(file_paths, len(file_paths)
@@ -135,7 +147,8 @@ def TestUploadWiki():
         assert page['content'] == \
             '<p>Please add some content to help describe this page.</p>'
 
-        self.api.page('This Page Does Not Exist').delete()
+        self.api.page('This Page Does Not Exist').delete(username=self.user_name,
+                                                         api_key=self.api_key)
 
         # create a page that does exist
         page_name = 'Existing Upload Test Page'
@@ -148,9 +161,10 @@ def TestUploadWiki():
         non_page_name = 'this will never be the name of a page'
         assert self.uploader.find_files_in_page(non_page_name) is None
 
-        files_in_page = find_files_in_page('Existing Upload Test Page')
-        assert files_in_page[0]['name'] = 'photo-with-tags.jpg'
-        assert files_in_page[0]['slug'] = 'existing upload test page'
+        files_in_page = \
+            self.uploader.find_files_in_page('Existing Upload Test Page')
+        assert files_in_page[0]['name'] == 'photo-with-tags.jpg'
+        assert files_in_page[0]['slug'] == 'existing upload test page'
 
     def test_file_exists_on_server(self):
 
@@ -173,7 +187,7 @@ def TestUploadWiki():
 
     def test_embed_image(self):
         page_info = self.uploader.embed_image(self.test_page_names[0],
-                                  'photo-with-tags-01.png')
+                                              'photo-with-tags-01.png')
         expected_content = \
 """
 <p>
@@ -199,7 +213,7 @@ def TestUploadWiki():
         files = self.api.file.get(slug='existing upload page')['objects']
         assert 'photo-without-tags.jpg' in [f['name'] for f in files]
 
-    def test_upload_image(self):
+    def test_upload(self):
         self.uploader.upload(self.main_keyword, *self.test_directories)
 
         for page_name, test_files in zip(self.test_page_names,
@@ -210,7 +224,7 @@ def TestUploadWiki():
             for file_name in test_files:
                 assert file_name in file_names_on_server
 
-    def teardown():
+    def teardown(self):
 
         # remove all keywords from the test images
         for directory in self.test_directories:
@@ -227,9 +241,13 @@ def TestUploadWiki():
         for page_name in self.test_page_names:
             files = self.api.file.get(slug=page_name.lower())['objects']
             for f in files:
-                self.api.file.delete(f['id'])
-            self.api.page.delete(page_name)
+                # TODO : delete or get by file id doesn't seem to work
+                self.api.file(f['id']).delete(username=self.user_name,
+                                              api_key=self.api_key)
+            self.api.page(page_name).delete(username=self.user_name,
+                                            api_key=self.api_key)
 
+        # TODO : Move into the test
         # delete the tmp image directories
         directories = ['localwikidir1', 'localwikidir2']
         for directory in directories:
