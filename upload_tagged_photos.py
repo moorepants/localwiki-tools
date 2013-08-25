@@ -280,6 +280,8 @@ class ImageUploader(object):
             The response from the patch.
 
         """
+        files = self.find_files_in_page(page_name)
+        page_info = self.api.page.get(page_name)
 
         current_content = self.api.page(page_name).get()['content']
         html = \
@@ -294,8 +296,13 @@ class ImageUploader(object):
 </p>
 """.format(file_name, caption)
 
-        return self.api.page(page_name).patch({'content': current_content +
-                                               html})
+        if (image_name in [f['name'] for f in files] and current_content not
+                in page_info['content']):
+            return self.api.page(page_name).patch({'content':
+                                                   current_content + html})
+        else:
+            print('Aborting image not embedding, do it manually.')
+            return None
 
 if __name__ == "__main__":
 
