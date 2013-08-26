@@ -32,12 +32,16 @@ class ImageUploader(object):
         """
 
         if user_name is None:
-            user_name = raw_input("What is your username?\n")
+            self.user_name = raw_input("What is your username?\n")
+        else:
+            self.user_name = user_name
 
         if api_key is None:
-            api_key = getpass.getpass("What is your api_key?\n")
+            self.api_key = getpass.getpass("What is your api_key?\n")
+        else:
+            self.api_key = api_key
 
-        self.api = slumber.API(api_url)
+        self.api = slumber.API(api_url, append_slash=False)
 
     def upload(self, main_keyword, *directories, **kwargs):
         """Uploads all the new files in the specified directories with the
@@ -160,8 +164,9 @@ class ImageUploader(object):
             return self.api.page(page_name).get()
         except slumber.exceptions.HttpClientError:
             print("Creating the new page: {}".format(page_name))
-            return self.api.page.post(page_dict, username=self.user_name,
-                    api_key=self.api_key)
+            self.api.page.post(page_dict, username=self.user_name,
+                               api_key=self.api_key)
+            return self.api.page(page_name).get()
 
     def find_files_in_page(self, page_name):
         """Returns a list of dictionaries, one for each file, attached to a
@@ -181,7 +186,7 @@ class ImageUploader(object):
         """
         try:
             slug = self.api.page(page_name).get()['slug']
-        except slumber.exceptions.HTTPClientError:
+        except slumber.exceptions.HttpClientError:
             return None
         else:
             return self.api.files.get(slug=slug)['objects']

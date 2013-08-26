@@ -33,9 +33,30 @@ class TestUploadWiki():
                   ['photo-with-tags-02.jpg',
                    'photo-with-tags-02.png']]
 
+    def delete_server_side(self):
+        """Deletes the files from the test pages and then the pages
+        themselves."""
+
+        # the server
+        for page_name in self.test_page_names + ['This Page Does Not Exist']:
+            try:
+                self.api.page(page_name).get()
+            except slumber.exceptions.HttpClientError:
+                pass
+            else:
+                files = self.api.file.get(slug=page_name.lower())['objects']
+                for f in files:
+                    self.api.file(f['id']).delete(username=self.user_name,
+                                                  api_key=self.api_key)
+                    print("Deleted {} from {} on the server.".format(
+                        f['name'], page_name))
+                self.api.page(page_name).delete(username=self.user_name,
+                                                api_key=self.api_key)
+                print("Deleted {} from the server".format(page_name))
+
     def setup(self):
 
-        self.api = slumber.API(self.api_url)
+        self.api = slumber.API(self.api_url, append_slash=False)
 
         # create directories with images, some with correct keywords
         for directory, test_page_name in zip(self.test_directories,
@@ -50,18 +71,17 @@ class TestUploadWiki():
                                                test_page_name])
                     metadata.save_file()
 
+        # delete any files/pages that may have been leftover from previous
+        # tests
+        self.delete_server_side()
+
         # create a test page that doesn't have the images on it
         page_dict = {"content": "<p>The Existing Upload Test Page.</p>",
                      "name": self.test_page_names[0],
                      }
-        try:
-            self.api.page.post(page_dict, username=self.user_name,
-                               api_key=self.api_key)
-        except slumber.exceptions.HttpServerError:
-            self.api.page(page_dict['name']).delete(username=self.user_name,
-                                                   api_key=self.api_key)
-            self.api.page.post(page_dict, username=self.user_name,
-                               api_key=self.api_key)
+
+        self.api.page.post(page_dict, username=self.user_name,
+                           api_key=self.api_key)
 
         test_page_slug = self.api.page(page_dict['name']).get()['slug']
 
@@ -109,6 +129,12 @@ class TestUploadWiki():
         for directory in directories:
             shutil.rmtree(os.path.join('/tmp', directory))
 
+        # delete the tmp image directories
+        directories = ['localwikidir1', 'localwikidir2']
+        for directory in directories:
+            shutil.rmtree(os.path.join('/tmp', directory,
+                                       self.uploader._tmp_dir_name))
+
     def test_find_localwiki_images(self):
         self.uploader.directories = self.test_directories
         wiki_images = self.uploader.find_localwiki_images()
@@ -141,8 +167,8 @@ class TestUploadWiki():
     def test_create_page(self):
         # create a page that doesn't exist
         page_name = 'This Page Does Not Exist'
-        page = self.uploader.create_page(page_name)
-
+        self.uploader.create_page(page_name)
+        page = self.api.page(page_name).get()
         assert page['name'] == page_name
         assert page['content'] == \
             '<p>Please add some content to help describe this page.</p>'
@@ -238,18 +264,5 @@ class TestUploadWiki():
 
         # remove the files attached to the test page and the test pages from
         # the server
-        for page_name in self.test_page_names:
-            files = self.api.file.get(slug=page_name.lower())['objects']
-            for f in files:
-                # TODO : delete or get by file id doesn't seem to work
-                self.api.file(f['id']).delete(username=self.user_name,
-                                              api_key=self.api_key)
-            self.api.page(page_name).delete(username=self.user_name,
-                                            api_key=self.api_key)
+        self.delete_server_side()
 
-        # TODO : Move into the test
-        # delete the tmp image directories
-        directories = ['localwikidir1', 'localwikidir2']
-        for directory in directories:
-            shutil.rmtree(os.path.join('/tmp', directory,
-                                       self.uploader._tmp_dir_name))
