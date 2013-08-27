@@ -263,19 +263,19 @@ class ImageUploader(object):
 
         if metadata['Exif.Image.Orientation'] != '1' and not rotated:
             self.rotate_image(file_path)
-            image = open(tmp_file_path, 'r')
+            image_path = tmp_file_path
         else:
-            image = open(file_path, 'r')
+            image_path = file_path
 
-        print('Uploading {} to {}'.format(file_name, page['name']))
-
-        # may need this instead:
-        #self.api.file.post({'name': file_name, 'slug'=page['slug']},
-                           #files={'file': image})
-        self.api.file.post(name=file_name, slug=page['slug'], files={'file':
-            image}, username=self.user_name, api_key=self.api_key)
-        print('Done.')
-        image.close()
+        with open(image_path, 'r') as image:
+            print('Uploading {} to {}'.format(file_name, page['name']))
+            self.api.file.post({'name': file_name, 'slug': page['slug']},
+                               files={'file': image},
+                               username=self.user_name,
+                               api_key=self.api_key)
+            #self.api.file.post(name=file_name, slug=page['slug'], files={'file':
+                #image}, username=self.user_name, api_key=self.api_key)
+            print('Done.')
 
     def embed_image(self, page_name, image_name, caption='Caption me!'):
         """Appends HTML to the page that embeds the attached image.

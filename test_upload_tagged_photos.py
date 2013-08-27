@@ -63,15 +63,16 @@ class TestUploadWiki():
                                              self.test_page_names):
             file_names = os.listdir(directory)
             for file_name in file_names:
+                metadata = GExiv2.Metadata(os.path.join(directory,
+                                                        file_name))
                 if '-with-' in file_name:
-                    metadata = GExiv2.Metadata(os.path.join(directory,
-                                                            file_name))
                     keywords = [self.main_keyword, 'page:' + test_page_name]
                     metadata.set_tag_multiple('Iptc.Application2.Keywords',
                                               keywords)
-                    metadata.save_file()
                     print('Added keywords {} to {}.'.format(keywords,
                                                             file_name))
+                metadata['Exif.Image.Orientation'] = '1'
+                metadata.save_file()
 
         # delete any files/pages that may have been leftover from previous
         # tests
@@ -233,12 +234,12 @@ class TestUploadWiki():
         assert page_info is None
 
     def test_upload_image(self):
-        page_info = self.api.page.get(self.test_page_name[0])
+        page_info = self.api.page(self.test_page_names[0]).get()
         self.uploader.upload_image(page_info,
                                    os.path.join(self.test_directories[0],
-                                                'photo-without-tags.jpg'))
-        files = self.api.file.get(slug='existing upload page')['objects']
-        assert 'photo-without-tags.jpg' in [f['name'] for f in files]
+                                                'photo-without-tags-01.jpg'))
+        files = self.api.file.get(slug=page_info['slug'])['objects']
+        assert 'photo-without-tags-01.jpg' in [f['name'] for f in files]
 
     def test_upload(self):
         self.uploader.upload(self.main_keyword, *self.test_directories)
