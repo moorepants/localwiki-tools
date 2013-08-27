@@ -196,7 +196,7 @@ class ImageUploader(object):
         except slumber.exceptions.HttpClientError:
             return None
         else:
-            return self.api.files.get(slug=slug)['objects']
+            return self.api.file.get(slug=slug)['objects']
 
     def file_exists_on_server(self, file_name):
         """Returns true if the file already exists on the server.

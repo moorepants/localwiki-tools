@@ -190,13 +190,13 @@ class TestUploadWiki():
 
         files_in_page = \
             self.uploader.find_files_in_page('Existing Upload Test Page')
-        assert files_in_page[0]['name'] == 'photo-with-tags.jpg'
+        assert files_in_page[0]['name'] == 'photo-with-tags-01.jpg'
         assert files_in_page[0]['slug'] == 'existing upload test page'
 
     def test_file_exists_on_server(self):
 
         assert not self.uploader.file_exists_on_server('booglediddly.png')
-        assert self.uploader.file_exists_on_server('photo-with-tags.jpg')
+        assert self.uploader.file_exists_on_server('photo-with-tags-01.jpg')
 
     def test_rotate_image(self):
         pass
