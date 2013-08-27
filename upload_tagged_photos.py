@@ -273,8 +273,6 @@ class ImageUploader(object):
                                files={'file': image},
                                username=self.user_name,
                                api_key=self.api_key)
-            #self.api.file.post(name=file_name, slug=page['slug'], files={'file':
-                #image}, username=self.user_name, api_key=self.api_key)
             print('Done.')
 
     def embed_image(self, page_name, image_name, caption='Caption me!'):
