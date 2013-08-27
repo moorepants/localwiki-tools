@@ -133,13 +133,13 @@ class ImageUploader(object):
 
             if True in [file_name.endswith(ext) for ext in
                         self._file_extensions]:
-                metadata = GExiv2.Metadata(file_name)
+                metadata = GExiv2.Metadata(os.path.join(directory, file_name))
                 keywords = \
                     metadata.get_tag_multiple('Iptc.Application2.Keywords')
 
                 if self.main_keyword in keywords:
 
-                    wiki_images[os.join.path(directory, file_name)] = \
+                    wiki_images[os.path.join(directory, file_name)] = \
                         [keyword.split(':')[1] for keyword in keywords if
                             keyword.startswith('page:')]
 

@@ -155,13 +155,13 @@ class TestUploadWiki():
         for directory, page_name in zip(self.test_directories,
                                         self.test_page_names):
             file_names = [f for f in os.listdir(directory) if '-with-' in f]
+            self.uploader.main_keyword = self.main_keyword
             wiki_images = \
-                self.uploader.find_localwiki_images_in_directory(
-                    self, directory)
+                self.uploader.find_localwiki_images_in_directory(directory)
             file_paths = [os.path.join(directory, file_name) for file_name
                           in file_names]
             expected_wiki_images = dict(zip(file_paths, len(file_paths) *
-                                            page_name))
+                                            [[page_name]]))
             assert expected_wiki_images == wiki_images
 
     def test_create_page(self):
