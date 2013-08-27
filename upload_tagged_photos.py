@@ -111,7 +111,7 @@ class ImageUploader(object):
 
         wiki_images = {}
         for directory in self.directories:
-            wiki_images.upate(self.find_images_in_directory(directory))
+            wiki_images.update(self.find_localwiki_images_in_directory(directory))
 
         return wiki_images
 

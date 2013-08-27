@@ -137,6 +137,7 @@ class TestUploadWiki():
 
     def test_find_localwiki_images(self):
         self.uploader.directories = self.test_directories
+        self.uploader.main_keyword = self.main_keyword
         wiki_images = self.uploader.find_localwiki_images()
 
         expected_wiki_images = {}
@@ -146,7 +147,7 @@ class TestUploadWiki():
             file_paths = [os.path.join(directory, file_name) for file_name
                           in file_names]
             expected_wiki_images.update(dict(zip(file_paths, len(file_paths)
-                                                 * page_name)))
+                                                 * [[page_name]])))
 
         assert expected_wiki_images == wiki_images
 
