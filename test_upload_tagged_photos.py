@@ -108,6 +108,7 @@ class TestUploadWiki():
     def test_remove_tmp_dirs(self):
         directories = ['localwikidir1', 'localwikidir2']
         for directory in directories:
+            os.mkdir(os.path.join('/tmp', directory))
             os.mkdir(os.path.join('/tmp', directory,
                                   self.uploader._tmp_dir_name))
         files = ['file1.jpg', 'file2.jpg']
@@ -117,23 +118,18 @@ class TestUploadWiki():
                                      self.uploader._tmp_dir_name, file_name)
             with open(file_path, 'w') as f:
                 pass
-            file_path.append()
-            assert os.exists(file_path)
+            file_paths.append(file_path)
+            assert os.path.exists(file_path)
 
-        self.uploader.remove_tmp_dirs(file_paths)
+        self.uploader.remove_tmp_dirs([os.path.join('/tmp', d, f) for d, f
+                                       in zip(directories, files)])
 
         for file_path in file_paths:
-            assert not os.exists(os.split(file_path)[0])
-            assert not os.exists(file_path)
+            assert not os.path.isdir(os.path.split(file_path)[0])
+            assert not os.path.exists(file_path)
 
         for directory in directories:
             shutil.rmtree(os.path.join('/tmp', directory))
-
-        # delete the tmp image directories
-        directories = ['localwikidir1', 'localwikidir2']
-        for directory in directories:
-            shutil.rmtree(os.path.join('/tmp', directory,
-                                       self.uploader._tmp_dir_name))
 
     def test_find_localwiki_images(self):
         self.uploader.directories = self.test_directories

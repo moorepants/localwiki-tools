@@ -89,12 +89,19 @@ class ImageUploader(object):
         print('Done.')
 
     def remove_tmp_dirs(self, file_paths):
-        """Removes any of the temporary directories used to rotate images."""
+        """Removes any of the temporary directories used to rotate images.
+
+        Parameters
+        ==========
+        file_paths : list of strings
+            The paths to the original files.
+
+        """
         fondled_directories = set([os.path.split(path)[0] for path in
                                    file_paths])
         for directory in fondled_directories:
             tmp_dir = os.path.join(directory, self._tmp_dir_name)
-            if os.path.exists(tmp_dir):
+            if os.path.isdir(tmp_dir):
                 shutil.rmtree(tmp_dir)
 
     def find_localwiki_images(self):
