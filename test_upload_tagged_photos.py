@@ -66,10 +66,12 @@ class TestUploadWiki():
                 if '-with-' in file_name:
                     metadata = GExiv2.Metadata(os.path.join(directory,
                                                             file_name))
+                    keywords = [self.main_keyword, 'page:' + test_page_name]
                     metadata.set_tag_multiple('Iptc.Application2.Keywords',
-                                              [self.main_keyword, 'page:' +
-                                               test_page_name])
+                                              keywords)
                     metadata.save_file()
+                    print('Added keywords {} to {}.'.format(keywords,
+                                                            file_name))
 
         # delete any files/pages that may have been leftover from previous
         # tests
@@ -82,6 +84,7 @@ class TestUploadWiki():
 
         self.api.page.post(page_dict, username=self.user_name,
                            api_key=self.api_key)
+        print('Created {} on the server.'.format(self.test_page_names[0]))
 
         test_page_slug = self.api.page(page_dict['name']).get()['slug']
 
@@ -92,6 +95,7 @@ class TestUploadWiki():
                                 'slug': test_page_slug}, files={'file': f},
                                username=self.user_name,
                                api_key=self.api_key)
+        print('Added {} to {}.'.format(file_path, self.test_page_names[0]))
 
         # TODO : create some images with the Exif such that the images have
         # to be rotated before upload.
@@ -169,8 +173,8 @@ class TestUploadWiki():
         assert page['content'] == \
             '<p>Please add some content to help describe this page.</p>'
 
-        self.api.page('This Page Does Not Exist').delete(username=self.user_name,
-                                                         api_key=self.api_key)
+        self.api.page('This Page Does Not Exist').delete(
+            username=self.user_name, api_key=self.api_key)
 
         # create a page that does exist
         page_name = 'Existing Upload Test Page'
@@ -257,8 +261,8 @@ class TestUploadWiki():
                                                             file_name))
                     metadata.clear_tag('Iptc.Application2.Keywords')
                     metadata.save_file()
+                    print('Cleared tags from {}.'.format(file_name))
 
         # remove the files attached to the test page and the test pages from
         # the server
         self.delete_server_side()
-
