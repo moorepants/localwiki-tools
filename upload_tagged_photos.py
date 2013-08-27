@@ -296,9 +296,9 @@ class ImageUploader(object):
 
         """
         files = self.find_files_in_page(page_name)
-        page_info = self.api.page.get(page_name)
+        page_info = self.api.page(page_name).get()
 
-        current_content = self.api.page(page_name).get()['content']
+        current_content = page_info['content']
         html = \
 """
 <p>
@@ -309,13 +309,14 @@ class ImageUploader(object):
     </span>
   </span>
 </p>
-""".format(file_name, caption)
+""".format(image_name, caption)
 
-        if (image_name in [f['name'] for f in files] and current_content not
-                in page_info['content']):
-            return self.api.page(page_name).patch({'content':
+        if (image_name in [f['name'] for f in files] and html not
+                in current_content):
+            self.api.page(page_name).patch({'content':
                 current_content + html}, username=self.user_name,
                 api_key=self.api_key)
+            return self.api.page(page_name).get()
         else:
             print('Aborting image not embedding, do it manually.')
             return None

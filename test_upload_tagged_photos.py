@@ -214,12 +214,12 @@ class TestUploadWiki():
 
     def test_embed_image(self):
         page_info = self.uploader.embed_image(self.test_page_names[0],
-                                              'photo-with-tags-01.png')
+                                              'photo-with-tags-01.jpg')
         expected_content = \
 """
 <p>
   <span class="image_frame image_frame_border">
-    <img src="_files/photo-with-tags-01.png" style="width: 300px; height: 225px;" />
+    <img src="_files/photo-with-tags-01.jpg" style="width: 300px; height: 225px;" />
     <span class="image_caption" style="width: 300px;">
       Caption me!
     </span>
