@@ -246,8 +246,8 @@ class TestUploadWiki():
 
         for page_name, test_files in zip(self.test_page_names,
                                          self.test_files):
-            page_info = self.api.page.get(page_name)
-            files = self.api.file.get(slug=page_info['slug'])
+            page_info = self.api.page(page_name).get()
+            files = self.api.file.get(slug=page_info['slug'])['objects']
             file_names_on_server = [f['name'] for f in files]
             for file_name in test_files:
                 assert file_name in file_names_on_server
