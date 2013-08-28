@@ -132,3 +132,4 @@ TODO
 - Add instructions for deleting the page with no name.
 - When pages are created, tag them as stub and put a stub banner at the top so
   we know they need more info.
+- Add tests for the image rotation method.
