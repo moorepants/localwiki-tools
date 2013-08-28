@@ -82,8 +82,12 @@ class ImageUploader(object):
                 image_name = os.path.split(file_path)[1]
                 if not self.file_exists_on_server(image_name):
                     self.upload_image(page, file_path)
-                    # TODO : add the caption here if there is one
-                    self.embed_image(page_name, image_name)
+                    metadata = GExiv2.Metadata(file_path)
+                    if 'Iptc.Application2.Caption' in metadata.get_iptc_tags():
+                        self.embed_image(page_name, image_name,
+                            caption=metadata['Iptc.Application2.Caption'])
+                    else:
+                        self.embed_image(page_name, image_name)
                 else:
                     print("{} already exists on the localwiki.".format(file_path))
 
@@ -302,7 +306,10 @@ class ImageUploader(object):
 
         current_content = page_info['content']
         # TODO: change the aspect ratio of the thumbnail for rotated photos
-        # TODO: Rotated images seem to have confused exifs on teh web site.
+        # use metadata.get_pixel_height()
+        # and metadata.get_pixel_width()
+        # they return integers
+        # TODO: Rotated images seem to have confused exifs on the web site.
         html = \
 """
 <p>

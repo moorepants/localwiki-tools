@@ -33,6 +33,8 @@ class TestUploadWiki():
                   ['photo-with-tags-02.jpg',
                    'photo-with-tags-02.png']]
 
+    caption = 'The cool caption.'
+
     def delete_server_side(self):
         """Deletes the files from the test pages and then the pages
         themselves."""
@@ -72,6 +74,7 @@ class TestUploadWiki():
                     print('Added keywords {} to {}.'.format(keywords,
                                                             file_name))
                 metadata['Exif.Image.Orientation'] = '1'
+                metadata['Iptc.Application2.Caption'] = self.caption
                 metadata.save_file()
 
         # delete any files/pages that may have been leftover from previous
@@ -223,11 +226,12 @@ class TestUploadWiki():
   <span class="image_frame image_frame_border">
     <img src="_files/photo-with-tags-01.jpg" style="width: 300px; height: 225px;" />
     <span class="image_caption" style="width: 300px;">
-      Caption me!
+      {}
     </span>
   </span>
 </p>
-"""
+""".format(self.caption)
+
         assert expected_content in page_info['content']
 
         page_info = self.uploader.embed_image(self.test_page_names[0],
@@ -263,6 +267,7 @@ class TestUploadWiki():
                     metadata = GExiv2.Metadata(os.path.join(directory,
                                                             file_name))
                     metadata.clear_tag('Iptc.Application2.Keywords')
+                    metadata.clear_tag('Iptc.Application2.Caption')
                     metadata.save_file()
                     print('Cleared tags from {}.'.format(file_name))
 
