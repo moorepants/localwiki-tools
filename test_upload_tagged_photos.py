@@ -1,16 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# builtin
+# standard library
 import os
 import shutil
 import ConfigParser
 
-# external
+# external libraries
 import slumber
 from gi.repository import GExiv2
 
-# local
+# local libraries
 from upload_tagged_photos import ImageUploader
 
 

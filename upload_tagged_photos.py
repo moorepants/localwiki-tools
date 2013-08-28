@@ -1,10 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+# standard library
 import os
 import shutil
 import getpass
 
+# external libraries
 import slumber
 from gi.repository import GExiv2
 
@@ -107,7 +109,7 @@ class ImageUploader(object):
     def find_localwiki_images(self):
         """Returns a dictionary mapping local image paths to local wiki page
         names for all images in the provided directories that have the
-        corret tags."""
+        correct tags."""
 
         wiki_images = {}
         for directory in self.directories:
@@ -147,8 +149,8 @@ class ImageUploader(object):
 
     def create_page(self, page_name):
         """Creates a new blank page on the server with the provided page
-        name and returns the data recieved from the post, unless it already
-        exists, in which case it returns the exsiting page.
+        name and returns the data received from the post, unless it already
+        exists, in which case it returns the existing page.
 
         Parameters
         ==========
@@ -187,7 +189,7 @@ class ImageUploader(object):
         Returns
         =======
         files : list of dictionaries or None
-            The respons dictionaries, one for each file associated with the
+            The response dictionaries, one for each file associated with the
             page. None if the page doesn't exist.
 
         """
@@ -220,7 +222,7 @@ class ImageUploader(object):
 
     def rotate_image(self, file_path):
         """Creates a temporary directory beside the file, copies the file
-        into the directory, and rotates it based on the EXIF orientaiton
+        into the directory, and rotates it based on the EXIF orientation
         data.
 
         Parameters
@@ -322,24 +324,56 @@ class ImageUploader(object):
 if __name__ == "__main__":
 
     import argparse
+    import ConfigParser
 
     parser = argparse.ArgumentParser(
         description='Upload images to local wiki.')
-    parser.add_argument('url', type=str,
+
+    parser.add_argument('--url', type=str, default=None,
         help="The API url with a trailing slash, e.g http://clevelandwiki.org/api/")
-    parser.add_argument('keyword', type=str,
+
+    parser.add_argument('--keyword', type=str, default=None,
         help="The main keyword to look for, e.g. 'cleveland wiki'.")
+
+    parser.add_argument('--prefix', type=str, default=None,
+        help="The keyword page name prefix, the default is 'page:'.")
+
+    parser.add_argument('--username', type=str, default=None,
+        help="The user name for API access.")
+
+    parser.add_argument('--apikey', type=str, default=None,
+        help="The api key for API access.")
+
     parser.add_argument('directories', type=str, narg='*',
         help="The directories to search.")
-    parser.add_argument('--prefix', type=str,
-        help="The keyword page name prefix, the default is 'page:'.")
+
     args = parser.parse_args()
 
-    uploader = ImageUploader(args.url)
-
-    if args.prefix:
-        kwargs = {'page_keyword_prefix': args.prefix}
+    if not args.keyword:
+        config = ConfigParser.ConfigParser()
+        config.read('test.cfg')
+        api_url = config.get('localwiki', 'api_url')
+        init_kwargs = {'user_name': config.get('localwiki', 'user_name'),
+                       'api_key': config.get('localwiki', 'api_key')}
+        main_keyword = config.get('localwiki', 'main_keyword')
+        upload_kwargs = {'page_keyword_prefix':
+                         config.get('localwiki', 'page_keyword_prefix')}
     else:
-        kwargs = {}
+        api_url = args.url
+        main_keyword = args.keyword
 
-    uploader.upload(args.keyword, *args.directories, **kwargs)
+        init_kwargs = {}
+
+        if args.username:
+            init_kwargs.update({'user_name': args.username})
+
+        if args.apikey:
+            init_kwargs.update({'api_key': args.apikey})
+
+        upload_kwargs = {}
+
+        if args.prefix:
+            upload_kwargs.update({'page_keyword_prefix': args.prefix})
+
+    uploader = ImageUploader(api_url, **init_kwargs)
+    uploader.upload(main_keyword, *args.directories, **upload_kwargs)
