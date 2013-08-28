@@ -37,11 +37,11 @@ Make a virtual environment (using virtualenvwrapper)::
 
 Get slumber::
 
-   (wiki)$ pip install slumber pyyaml simplejson
+   (mywiki)$ pip install slumber pyyaml simplejson
 
 Get nose::
 
-   (wiki)$ pip install nose
+   (mywiki)$ pip install nose
 
 I run GExiv2 in a virtual environment using this hack:
 
