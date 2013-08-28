@@ -53,12 +53,12 @@ Usage
 First pick a tagging schema. You will need a main tag to identify photos that
 belong on your localwiki and also a tag to identify which page they should be
 associated with. For example, I open my photos in Shotwell and tag every photo
-that I want to upload with `cleveland wiki`. Then I go through each of those
-photos and add a tag in the form `page:<exact page name>` to specify the page
-to associated the image with. For example the second tag could be `page:Front
-Page` if I want the image to be added to the page named `Front Page`. The main
+that I want to upload with ``cleveland wiki``. Then I go through each of those
+photos and add a tag in the form ``page:<exact page name>`` to specify the page
+to associated the image with. For example the second tag could be ``page:Front
+Page`` if I want the image to be added to the page named ``Front Page``. The main
 tag can be anything you like and the page tag must have some kind of prefix, in
-this case it was `page:` (the script assumes `page:` as the default prefix.
+this case it was ``page:`` (the script assumes ``page:`` as the default prefix.
 
 Once you have some tagged photos in some arbitrary directories, you can upload
 them using either the command line or through the Python API.
@@ -72,13 +72,13 @@ files with appropriate tags (this is not a recursive search)::
 
    $ python upload_tagged_photos.py <directories>
 
-For example if I have photos in in two directories `~/Pictures/2013-08-27` and
-`~/Pictures/2013-08-26` that I would like to upload then use::
+For example if I have photos in in two directories ``~/Pictures/2013-08-27`` and
+``~/Pictures/2013-08-26`` that I would like to upload then use::
 
    $ python upload_tagged_photos.py ~/Pictures/2013-08-27 ~/Pictures/2013-08-26
 
-If all you supply are the directories then you must have a `test.cfg` file in
-the same directory as `upload_tagged_photos.py` with this as its contents::
+If all you supply are the directories then you must have a ``test.cfg`` file in
+the same directory as ``upload_tagged_photos.py`` with this as its contents::
 
    [localwiki]
    api_url=http://<yourlocalwiki>.org/api/
@@ -91,7 +91,7 @@ The things in carets should of course be replaced by values that are useful to
 you. And don't forget the trailing slash on the url.
 
 You can also pass these in via the command line if you don't want to use the
-`test.cfg` file (you must pass at least the main tag/keyword and the api url)::
+``test.cfg`` file (you must pass at least the main tag/keyword and the api url)::
 
    $ python upload_tagged_photos.py --url http://<yourlocalwiki>.org/api/ --keyword <your main tag/keyword> <directories>
 
@@ -114,7 +114,7 @@ program::
 Tests
 =====
 
-The tests rely on a `test.cfg` file being in the directory. To run them with
+The tests rely on a ``test.cfg`` file being in the directory. To run them with
 nose type::
 
    $ nosetests
