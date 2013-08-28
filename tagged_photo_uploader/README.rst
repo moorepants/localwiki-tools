@@ -130,3 +130,5 @@ TODO
 - Resize images to a more reasonable size instead of the huge size that comes
   off cameras.
 - Add instructions for deleting the page with no name.
+- When pages are created, tag them as stub and put a stub banner at the top so
+  we know they need more info.
