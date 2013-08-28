@@ -114,6 +114,10 @@ program::
 Tests
 =====
 
+**Warning: With the latest localwiki, 0.5.4, these tests will likely break your
+recent changes page. It introduces a page with a blank slug and blank name,
+that will have to be deleted through the localwiki shell afterwards.**
+
 The tests rely on a ``test.cfg`` file being in the directory. To run them with
 nose type::
 
@@ -123,3 +127,6 @@ TODO
 ====
 
 - Create a map point if the photo has a geo tag.
+- Resize images to a more reasonable size instead of the huge size that comes
+  off cameras.
+- Add instructions for deleting the page with no name.

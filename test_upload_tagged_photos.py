@@ -214,6 +214,7 @@ class TestUploadWiki():
         #assert metadata['Exif.Image.Orientation'] == '1'
 
     def test_embed_image(self):
+        # TODO : test caption
         page_info = self.uploader.embed_image(self.test_page_names[0],
                                               'photo-with-tags-01.jpg')
         expected_content = \
