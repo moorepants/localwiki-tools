@@ -217,14 +217,15 @@ class TestUploadWiki():
         #assert metadata['Exif.Image.Orientation'] == '1'
 
     def test_embed_image(self):
-        # TODO : test caption
+        # TODO : Test the aspect ratio
         page_info = self.uploader.embed_image(self.test_page_names[0],
-                                              'photo-with-tags-01.jpg')
+                                              'photo-with-tags-01.jpg',
+                                              3.0 / 4.0, caption=self.caption)
         expected_content = \
 """
 <p>
   <span class="image_frame image_frame_border">
-    <img src="_files/photo-with-tags-01.jpg" style="width: 300px; height: 225px;" />
+    <img src="_files/photo-with-tags-01.jpg" style="width: 300px; height: 400px;" />
     <span class="image_caption" style="width: 300px;">
       {}
     </span>

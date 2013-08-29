@@ -81,13 +81,17 @@ class ImageUploader(object):
                 page = self.create_page(page_name)
                 image_name = os.path.split(file_path)[1]
                 if not self.file_exists_on_server(image_name):
-                    self.upload_image(page, file_path)
-                    metadata = GExiv2.Metadata(file_path)
+                    image_path = self.upload_image(page, file_path)
+
+                    metadata = GExiv2.Metadata(image_path)
+                    aspect_ratio = float(metadata.get_pixel_width()) / \
+                        float(metadata.get_pixel_height())
+
                     if 'Iptc.Application2.Caption' in metadata.get_iptc_tags():
-                        self.embed_image(page_name, image_name,
+                        self.embed_image(page_name, image_name, aspect_ratio,
                             caption=metadata['Iptc.Application2.Caption'])
                     else:
-                        self.embed_image(page_name, image_name)
+                        self.embed_image(page_name, image_name, aspect_ratio)
                 else:
                     print("{} already exists on the localwiki.".format(file_path))
 
@@ -253,6 +257,11 @@ class ImageUploader(object):
         file_path : string
             The path to the image file.
 
+        Returns
+        =======
+        image_path : string
+            The path to the acutal image that was uploaded.
+
         """
 
         metadata = GExiv2.Metadata(file_path)
@@ -276,14 +285,17 @@ class ImageUploader(object):
             image_path = file_path
 
         with open(image_path, 'r') as image:
-            print('Uploading {} to {}'.format(file_name, page['name']))
+            print('Uploading {} to {}'.format(image_path, page['name']))
             self.api.file.post({'name': file_name, 'slug': page['slug']},
                                files={'file': image},
                                username=self.user_name,
                                api_key=self.api_key)
             print('Done.')
 
-    def embed_image(self, page_name, image_name, caption='Caption me!'):
+        return image_path
+
+    def embed_image(self, page_name, image_name, image_aspect_ratio,
+                    caption='Caption me!'):
         """Appends HTML to the page that embeds the attached image.
 
         Parameters
@@ -292,6 +304,8 @@ class ImageUploader(object):
             The name of the page to create.
         image_name : string
             The name of an image that is attached to the page.
+        image_aspect_ratio : float
+            The ratio of width to height of the rotated image.
         caption : string, optional, default='Caption me!'
             The caption that is displayed under the image.
 
@@ -304,23 +318,22 @@ class ImageUploader(object):
         files = self.find_files_in_page(page_name)
         page_info = self.api.page(page_name).get()
 
+        thumbnail_width = 300 # pixels
+        thumbnail_height = int(thumbnail_with / image_aspect_ratio)
+
         current_content = page_info['content']
-        # TODO: change the aspect ratio of the thumbnail for rotated photos
-        # use metadata.get_pixel_height()
-        # and metadata.get_pixel_width()
-        # they return integers
         # TODO: Rotated images seem to have confused exifs on the web site.
         html = \
 """
 <p>
   <span class="image_frame image_frame_border">
-    <img src="_files/{}" style="width: 300px; height: 225px;" />
+    <img src="_files/{}" style="width: 300px; height: {}px;" />
     <span class="image_caption" style="width: 300px;">
       {}
     </span>
   </span>
 </p>
-""".format(image_name, caption)
+""".format(image_name, thumbnail_height, caption)
 
         if (image_name in [f['name'] for f in files] and html not
                 in current_content):
