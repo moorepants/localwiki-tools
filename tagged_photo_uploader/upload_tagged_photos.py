@@ -9,12 +9,15 @@ import getpass
 # external libraries
 import slumber
 from gi.repository import GExiv2
+from PIL import Image
 
 
 class ImageUploader(object):
 
     _tmp_dir_name = '.localwiki'
-    _file_extensions = ['.png', '.jpg', '.gif']
+    # The code may only work with jpegs do to reliance on Exif metadata.
+    _file_extensions = ['.png', '.jpg', '.gif', '.jpeg']
+    _stub_page_content = "<p>This page is a stub, please add some content to help describe this page.</p>"
 
     def __init__(self, api_url, user_name=None, api_key=None):
         """Initializes the uploader.
@@ -55,8 +58,8 @@ class ImageUploader(object):
             The keyword embed in Iptc.Application2.Keywords that identifies
             your image as one that belongs on your localwiki site, e.g.
             'cleveland wiki'.
-        directories : str
-            The directories to search for images.
+        directories : string
+            The paths to directories to search for images.
         page_keyword_prefix : string, optional, default="page:"
             This is the prefix for the keyword embedded in your image which
             contains the page name where the image belongs, e.g. if you you
@@ -67,6 +70,7 @@ class ImageUploader(object):
 
         self.directories = list(directories)
         self.main_keyword = main_keyword
+
         if 'page_keyword_prefix' in kwargs.keys():
             self.page_keyword_prefix = kwargs['page_keyword_prefix']
         else:
@@ -76,16 +80,30 @@ class ImageUploader(object):
 
         for file_path, page_names in wiki_images.items():
 
+            metadata = GExiv2.Metadata(file_path)
+
+            tmp_file_path = self.create_tmp_image(file_path)
+
+            self.resize_image_to_1024(file_path, tmp_file_path)
+
+            if metadata['Exif.Image.Orientation'] != '1':
+                self.rotate_image(tmp_file_path)
+
+            aspect_ratio = float(metadata.get_pixel_width()) / \
+                float(metadata.get_pixel_height())
+
+            # Each file could have multple destination pages.
             for page_name in page_names:
 
                 page = self.create_page(page_name)
                 image_name = os.path.split(file_path)[1]
-                if not self.file_exists_on_server(image_name):
-                    image_path = self.upload_image(page, file_path)
 
-                    metadata = GExiv2.Metadata(image_path)
-                    aspect_ratio = float(metadata.get_pixel_width()) / \
-                        float(metadata.get_pixel_height())
+                # TODO : This check should be "if file exists on a page",
+                # as it stands this probably wouldn't allow uploads to
+                # multiple pages.
+                if not self.file_exists_on_server(image_name):
+
+                    self.upload_image(page, tmp_file_path)
 
                     if 'Iptc.Application2.Caption' in metadata.get_iptc_tags():
                         self.embed_image(page_name, image_name, aspect_ratio,
@@ -93,9 +111,9 @@ class ImageUploader(object):
                     else:
                         self.embed_image(page_name, image_name, aspect_ratio)
                 else:
-                    print("{} already exists on the localwiki.".format(file_path))
+                    print("Skipping {}, it already exists on the localwiki.".format(file_path))
 
-        print('Cleaning up image rotations.')
+        print('Cleaning up temporary images.')
         self.remove_tmp_dirs(wiki_images.keys())
         print('Done.')
 
@@ -127,12 +145,21 @@ class ImageUploader(object):
         return wiki_images
 
     def find_localwiki_images_in_directory(self, directory):
-        """Returns a dictionary mapping local image paths to local wiki page
-        names.
+        """Returns a dictionary mapping local image paths of files in the
+        given directory to local wiki page names.
 
+        Parameters
+        ==========
         directory : string
             The path to the directory that should be scanned for localwiki
             images.
+
+        Returns
+        =======
+        wiki_images : dictionary
+            The key is the path to the images which have the main keyword
+            and the associated value is a list of localwiki page names this
+            image should be associated with.
 
         """
 
@@ -147,6 +174,9 @@ class ImageUploader(object):
                 metadata = GExiv2.Metadata(os.path.join(directory, file_name))
                 keywords = \
                     metadata.get_tag_multiple('Iptc.Application2.Keywords')
+
+                # TODO : What happens if the image only has the
+                # main_keyword and the page list is empty?
 
                 if self.main_keyword in keywords:
 
@@ -174,7 +204,7 @@ class ImageUploader(object):
         """
 
         page_dict = {
-            "content": "<p>Please add some content to help describe this page.</p>",
+            "content": self._stub_page_content,
             "name": page_name,
         }
 
@@ -229,10 +259,36 @@ class ImageUploader(object):
 
         return exists
 
-    def rotate_image(self, file_path):
-        """Creates a temporary directory beside the file, copies the file
-        into the directory, and rotates it based on the EXIF orientation
-        data.
+    def create_tmp_image(self, file_path):
+        """Makes a copy of the file in a tmp directory beside the file.
+
+        Parameters
+        ==========
+        file_path : string
+            The path to the image file.
+
+        Returns
+        =======
+        tmp_file_path : string
+            The path to the temporary image copy.
+
+        """
+
+        directory, file_name = os.path.split(file_path)
+        tmp_directory = os.path.join(directory, self._tmp_dir_name)
+        tmp_file_path = os.path.join(tmp_directory, file_name)
+
+        if not os.path.isdir(tmp_directory):
+            os.mkdir(tmp_directory)
+
+        shutil.copyfile(file_path, tmp_file_path)
+
+        return tmp_file_path
+
+    @staticmethod
+    def rotate_image(file_path):
+        """Rotate and image to the correct orienation based on the EXIF
+        orientation data.
 
         Parameters
         ==========
@@ -240,15 +296,54 @@ class ImageUploader(object):
             The path to the image file.
 
         """
-        directory, file_name = os.path.split(file_path)
-        os.mkdir(os.path.join(directory, self._tmp_dir_name))
-        tmp_file_path = os.path.join(directory, self._tmp_dir_name,
-                                     file_name)
-        shutil.copyfile(file_path, tmp_file_path)
-        os.system("jhead -ft -autorot {}".format(tmp_file_path))
+        # -ft : sets the filesystem timestamp to the Exif timestamp
+        # -autorot : rotates the image so it is upright and then sets the
+        # orientation tag to 1
+        os.system("jhead -ft -autorot {}".format(file_path))
+
+        # TODO : Change this to a PIL call?:
+        # http://stackoverflow.com/questions/4228530/pil-thumbnail-is-rotating-my-image
+
+    @staticmethod
+    def resize_image_to_1024(parent_file_path, file_path):
+        """Resizes the image to 1024 if it is larger in width.
+
+        Parameters
+        ==========
+        parent_file_path : string
+            The path to the original image file with all the metadata.
+        file_path : string
+            The path to the temporary image file that should be resized.
+
+        Notes
+        =====
+        Do this before rotating the image because it is only based on width.
+
+        """
+        img = Image.open(file_path)
+        width, height = img.size
+        aspect_ratio = float(width) / float(height)
+        max_width = 1024
+        if width > max_width:
+
+            reduced_size = max_width, int(max_width / aspect_ratio)
+            img.thumbnail(reduced_size, Image.ANTIALIAS)
+            img.save(file_path, img.format)
+
+            # Copy all metadata from parent file to the resized file
+            os.system('jhead -te {} {}'.format(parent_file_path, file_path))
+
+            metadata = GExiv2.Metadata(file_path)
+            if (metadata.get_pixel_width() != reduced_size[0] or
+                metadata.get_pixel_height() != reduced_size[1]):
+
+                metadata.set_pixel_width(reduced_size[0])
+                metadata.set_pixel_height(reduced_size[1])
+                metadata.save_file()
 
     def upload_image(self, page, file_path):
-        """Uploads the image to the server.
+        """Uploads the image to the server and associates it with the given
+        page.
 
         Parameters
         ==========
@@ -257,42 +352,19 @@ class ImageUploader(object):
         file_path : string
             The path to the image file.
 
-        Returns
-        =======
-        image_path : string
-            The path to the acutal image that was uploaded.
-
         """
 
-        metadata = GExiv2.Metadata(file_path)
+        with open(file_path, 'r') as image:
 
-        directory, file_name = os.path.split(file_path)
-        tmp_file_path = os.path.join(directory, self._tmp_dir_name,
-                                     file_name)
+            print('Uploading {} to the {} page'.format(file_path,
+                                                       page['name']))
 
-        try:
-            with open(tmp_file_path):
-                pass
-        except IOError:
-            rotated = False
-        else:
-            rotated = True
-
-        if metadata['Exif.Image.Orientation'] != '1' and not rotated:
-            self.rotate_image(file_path)
-            image_path = tmp_file_path
-        else:
-            image_path = file_path
-
-        with open(image_path, 'r') as image:
-            print('Uploading {} to {}'.format(image_path, page['name']))
-            self.api.file.post({'name': file_name, 'slug': page['slug']},
+            self.api.file.post({'name': os.path.split(file_path)[1],
+                                'slug': page['slug']},
                                files={'file': image},
                                username=self.user_name,
                                api_key=self.api_key)
             print('Done.')
-
-        return image_path
 
     def embed_image(self, page_name, image_name, image_aspect_ratio,
                     caption='Caption me!'):
@@ -301,9 +373,9 @@ class ImageUploader(object):
         Parameters
         ==========
         page_name : string
-            The name of the page to create.
+            The name of the page to embed the image too.
         image_name : string
-            The name of an image that is attached to the page.
+            The name of an image that is already attached to the page.
         image_aspect_ratio : float
             The ratio of width to height of the rotated image.
         caption : string, optional, default='Caption me!'
@@ -318,8 +390,8 @@ class ImageUploader(object):
         files = self.find_files_in_page(page_name)
         page_info = self.api.page(page_name).get()
 
-        thumbnail_width = 300 # pixels
-        thumbnail_height = int(thumbnail_with / image_aspect_ratio)
+        thumbnail_width = 300  # pixels
+        thumbnail_height = int(thumbnail_width / image_aspect_ratio)
 
         current_content = page_info['content']
         # TODO: Rotated images seem to have confused exifs on the web site.

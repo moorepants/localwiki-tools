@@ -175,8 +175,7 @@ class TestUploadWiki():
         self.uploader.create_page(page_name)
         page = self.api.page(page_name).get()
         assert page['name'] == page_name
-        assert page['content'] == \
-            '<p>Please add some content to help describe this page.</p>'
+        assert page['content'] == self.uploader._stub_page_content
 
         self.api.page('This Page Does Not Exist').delete(
             username=self.user_name, api_key=self.api_key)
@@ -203,21 +202,25 @@ class TestUploadWiki():
         assert self.uploader.file_exists_on_server('photo-with-tags-01.jpg')
 
     def test_rotate_image(self):
-        pass
 
-        # TODO : create rotated images
-        #self.uploader.rotate_image(image_file_path)
+        tmp_image_path = 'tmp_rotation_test_image.jpg'
+        shutil.copyfile('rotation_test_image.jpg', tmp_image_path)
 
-        #directory, file_name = os.path.split(image_file_path)
+        metadata_before = GExiv2.Metadata(tmp_image_path)
 
-        #rotated_file_path = os.path.join(directory, self.uploader._tmp_dir, file_name)
-        #assert os.exists(rotated_file_path)
+        self.uploader.rotate_image(tmp_image_path)
 
-        #metadata = GExiv2.Metadata(rotated_file_path)
-        #assert metadata['Exif.Image.Orientation'] == '1'
+        metadata_after = GExiv2.Metadata(tmp_image_path)
+
+        assert metadata_after['Exif.Image.Orientation'] == '1'
+        assert metadata_after.get_pixel_height() == \
+            metadata_before.get_pixel_width()
+        assert metadata_after.get_pixel_width() == \
+            metadata_before.get_pixel_height()
+
+        os.remove('tmp_rotation_test_image.jpg')
 
     def test_embed_image(self):
-        # TODO : Test the aspect ratio
         page_info = self.uploader.embed_image(self.test_page_names[0],
                                               'photo-with-tags-01.jpg',
                                               3.0 / 4.0, caption=self.caption)
@@ -236,7 +239,7 @@ class TestUploadWiki():
         assert expected_content in page_info['content']
 
         page_info = self.uploader.embed_image(self.test_page_names[0],
-                                              'booger.png')
+                                              'booger.png', 1.0)
         assert page_info is None
 
     def test_upload_image(self):
@@ -258,19 +261,41 @@ class TestUploadWiki():
             for file_name in test_files:
                 assert file_name in file_names_on_server
 
+    def test_resize_image_to_1024(self):
+        image_path = 'resize_test_image.jpg'
+        tmp_image_path = 'tmp_resize_test_image.jpg'
+        shutil.copyfile(image_path, tmp_image_path)
+
+        metadata_before = GExiv2.Metadata(tmp_image_path)
+        aspect_ratio = (float(metadata_before.get_pixel_width()) /
+                        float(metadata_before.get_pixel_height()))
+
+        self.uploader.resize_image_to_1024(image_path, tmp_image_path)
+
+        metadata_after = GExiv2.Metadata(tmp_image_path)
+
+        assert metadata_after.get_pixel_width() == 1024
+        assert metadata_after.get_pixel_height() == int(1024 / aspect_ratio)
+
+        for tag in metadata_before.get_exif_tags() + metadata_before.get_iptc_tags():
+            assert metadata_after[tag] == metadata_before[tag]
+
+        # TODO : assert that image doesn't change if it is less than 1024
+
+        os.remove(tmp_image_path)
+
     def teardown(self):
 
         # remove all keywords from the test images
         for directory in self.test_directories:
             file_names = os.listdir(directory)
             for file_name in file_names:
-                if '-with-' in file_name:
-                    metadata = GExiv2.Metadata(os.path.join(directory,
-                                                            file_name))
-                    metadata.clear_tag('Iptc.Application2.Keywords')
-                    metadata.clear_tag('Iptc.Application2.Caption')
-                    metadata.save_file()
-                    print('Cleared tags from {}.'.format(file_name))
+                metadata = GExiv2.Metadata(os.path.join(directory,
+                                                        file_name))
+                metadata.clear_tag('Iptc.Application2.Keywords')
+                metadata.clear_tag('Iptc.Application2.Caption')
+                metadata.save_file()
+                print('Cleared tags from {}.'.format(file_name))
 
         # remove the files attached to the test page and the test pages from
         # the server
