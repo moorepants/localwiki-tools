@@ -250,7 +250,7 @@ class ImageUploader(object):
 
         """
 
-        file_list = self.api.file.get()['objects']
+        file_list = self.api.file.get(limit=0)['objects']
 
         exists = False
         for file_dict in file_list:
@@ -299,7 +299,7 @@ class ImageUploader(object):
         # -ft : sets the filesystem timestamp to the Exif timestamp
         # -autorot : rotates the image so it is upright and then sets the
         # orientation tag to 1
-        os.system("jhead -ft -autorot {}".format(file_path))
+        os.system("jhead -q -ft -autorot {}".format(file_path))
 
         # TODO : Change this to a PIL call?:
         # http://stackoverflow.com/questions/4228530/pil-thumbnail-is-rotating-my-image
@@ -331,7 +331,7 @@ class ImageUploader(object):
             img.save(file_path, img.format)
 
             # Copy all metadata from parent file to the resized file
-            os.system('jhead -te {} {}'.format(parent_file_path, file_path))
+            os.system('jhead -q -te {} {}'.format(parent_file_path, file_path))
 
             metadata = GExiv2.Metadata(file_path)
             if (metadata.get_pixel_width() != reduced_size[0] or
