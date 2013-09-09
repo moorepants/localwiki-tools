@@ -14,6 +14,7 @@ To run the script just make sure you have the requirements:
 - slumber
 - GExiv2
 - jhead
+- Pillow
 - nose (for tests only)
 
 To install on Ubuntu 13.04:
@@ -39,6 +40,10 @@ Get slumber::
 
    (mywiki)$ pip install slumber pyyaml simplejson
 
+Get Pillow (may need some more dependencies like libjpeg)::
+
+   (mywiki)$ pip install Pillow
+
 Get nose::
 
    (mywiki)$ pip install nose
@@ -55,10 +60,14 @@ belong on your localwiki and also a tag to identify which page they should be
 associated with. For example, I open my photos in Shotwell and tag every photo
 that I want to upload with ``cleveland wiki``. Then I go through each of those
 photos and add a tag in the form ``page:<exact page name>`` to specify the page
-to associated the image with. For example the second tag could be ``page:Front
-Page`` if I want the image to be added to the page named ``Front Page``. The main
-tag can be anything you like and the page tag must have some kind of prefix, in
-this case it was ``page:`` (the script assumes ``page:`` as the default prefix.
+to associated the image with. The if the page should be created with a
+particular template, I add a tag in the form: ``template:<template name>``. For
+example the second tag could be ``page:Front Page`` if I want the image to be
+added to the page named ``Front Page``. The main tag can be anything you like
+and the page tag must have some kind of prefix, in this case it was ``page:``
+(the script assumes ``page:`` as the default prefix.  If I specify
+``template:Business``, then if the page doesn't exist the business template
+will be used to create the page.
 
 Once you have some tagged photos in some arbitrary directories, you can upload
 them using either the command line or through the Python API.
@@ -122,14 +131,3 @@ The tests rely on a ``test.cfg`` file being in the directory. To run them with
 nose type::
 
    $ nosetests
-
-TODO
-====
-
-- Create a map point if the photo has a geo tag.
-- Resize images to a more reasonable size instead of the huge size that comes
-  off cameras.
-- Add instructions for deleting the page with no name.
-- When pages are created, tag them as stub and put a stub banner at the top so
-  we know they need more info.
-- Add tests for the image rotation method.

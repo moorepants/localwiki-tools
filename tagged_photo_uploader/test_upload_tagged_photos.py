@@ -65,17 +65,22 @@ class TestUploadWiki():
                                              self.test_page_names):
             file_names = os.listdir(directory)
             for file_name in file_names:
-                metadata = GExiv2.Metadata(os.path.join(directory,
-                                                        file_name))
-                if '-with-' in file_name:
-                    keywords = [self.main_keyword, 'page:' + test_page_name]
-                    metadata.set_tag_multiple('Iptc.Application2.Keywords',
-                                              keywords)
-                    print('Added keywords {} to {}.'.format(keywords,
+                if True in [file_name.endswith(ext) for ext in
+                            ImageUploader._file_extensions]:
+                    metadata = GExiv2.Metadata(os.path.join(directory,
                                                             file_name))
-                metadata['Exif.Image.Orientation'] = '1'
-                metadata['Iptc.Application2.Caption'] = self.caption
-                metadata.save_file()
+                    if '-with-' in file_name:
+                        keywords = [self.main_keyword, 'page:' +
+                                    test_page_name]
+                        metadata.set_tag_multiple('Iptc.Application2.Keywords',
+                                                keywords)
+                        print('Added keywords {} to {}.'.format(keywords,
+                                                                file_name))
+                    metadata['Exif.Image.Orientation'] = '1'
+                    metadata['Iptc.Application2.Caption'] = self.caption
+                    # TODO : add a 'template:<template name>' tag to one of
+                    # the files to test if it get's noticed.
+                    metadata.save_file()
 
         # delete any files/pages that may have been leftover from previous
         # tests
@@ -150,8 +155,9 @@ class TestUploadWiki():
                                                     self.test_files):
             file_paths = [os.path.join(directory, file_name) for file_name
                           in file_names]
-            expected_wiki_images.update(dict(zip(file_paths, len(file_paths)
-                                                 * [[page_name]])))
+            expected_wiki_images.update(dict(zip(file_paths, zip(len(file_paths)
+                                                 * [[page_name]], len(file_paths)
+                                                                 * [None]))))
 
         assert expected_wiki_images == wiki_images
 
@@ -165,8 +171,8 @@ class TestUploadWiki():
                 self.uploader.find_localwiki_images_in_directory(directory)
             file_paths = [os.path.join(directory, file_name) for file_name
                           in file_names]
-            expected_wiki_images = dict(zip(file_paths, len(file_paths) *
-                                            [[page_name]]))
+            expected_wiki_images = dict(zip(file_paths, zip(len(file_paths) *
+                                            [[page_name]], len(file_paths) * [None])))
             assert expected_wiki_images == wiki_images
 
     def test_create_page(self):
@@ -185,6 +191,15 @@ class TestUploadWiki():
         page = self.uploader.create_page(page_name)
         assert page['name'] == page_name
         assert page['content'] == "<p>The Existing Upload Test Page.</p>"
+
+        # test page creation with a template
+        page_name = 'This Page Does Not Exist And Has A Template'
+        self.uploader.create_page(page_name, template_name='Business')
+        page = self.api.page(page_name).get()
+        template = self.api.page('Templates/Business').get()
+        assert template['content'] in page['content']
+        self.api.page(page_name).delete(
+            username=self.user_name, api_key=self.api_key)
 
     def test_find_files_in_page(self):
 
@@ -290,12 +305,14 @@ class TestUploadWiki():
         for directory in self.test_directories:
             file_names = os.listdir(directory)
             for file_name in file_names:
-                metadata = GExiv2.Metadata(os.path.join(directory,
-                                                        file_name))
-                metadata.clear_tag('Iptc.Application2.Keywords')
-                metadata.clear_tag('Iptc.Application2.Caption')
-                metadata.save_file()
-                print('Cleared tags from {}.'.format(file_name))
+                if True in [file_name.endswith(ext) for ext in
+                            ImageUploader._file_extensions]:
+                    metadata = GExiv2.Metadata(os.path.join(directory,
+                                                            file_name))
+                    metadata.clear_tag('Iptc.Application2.Keywords')
+                    metadata.clear_tag('Iptc.Application2.Caption')
+                    metadata.save_file()
+                    print('Cleared tags from {}.'.format(file_name))
 
         # remove the files attached to the test page and the test pages from
         # the server

@@ -78,7 +78,7 @@ class ImageUploader(object):
 
         wiki_images = self.find_localwiki_images()
 
-        for file_path, page_names in wiki_images.items():
+        for file_path, (page_names, template_name) in wiki_images.items():
 
             metadata = GExiv2.Metadata(file_path)
 
@@ -95,7 +95,7 @@ class ImageUploader(object):
             # Each file could have multple destination pages.
             for page_name in page_names:
 
-                page = self.create_page(page_name)
+                page = self.create_page(page_name, template_name)
                 image_name = os.path.split(file_path)[1]
 
                 # TODO : This check should be "if file exists on a page",
@@ -146,7 +146,8 @@ class ImageUploader(object):
 
     def find_localwiki_images_in_directory(self, directory):
         """Returns a dictionary mapping local image paths of files in the
-        given directory to local wiki page names.
+        given directory to a tuple with the local wiki page names and an
+        optional template.
 
         Parameters
         ==========
@@ -158,8 +159,9 @@ class ImageUploader(object):
         =======
         wiki_images : dictionary
             The key is the path to the images which have the main keyword
-            and the associated value is a list of localwiki page names this
-            image should be associated with.
+            and the associated value is a tuple of a list of localwiki page
+            names this image should be associated with and a template to use
+            for the page creation.
 
         """
 
@@ -180,13 +182,20 @@ class ImageUploader(object):
 
                 if self.main_keyword in keywords:
 
+                    try:
+                        template = [keyword.split(':')[1] for keyword in
+                                    keywords if
+                                    keyword.startswith('template:')][0]
+                    except IndexError:
+                        template = None
+
                     wiki_images[os.path.join(directory, file_name)] = \
-                        [keyword.split(':')[1] for keyword in keywords if
-                            keyword.startswith('page:')]
+                        ([keyword.split(':')[1] for keyword in keywords if
+                            keyword.startswith('page:')], template)
 
         return wiki_images
 
-    def create_page(self, page_name):
+    def create_page(self, page_name, template_name=None):
         """Creates a new blank page on the server with the provided page
         name and returns the data received from the post, unless it already
         exists, in which case it returns the existing page.
@@ -195,6 +204,8 @@ class ImageUploader(object):
         ==========
         page_name : string
             The name of the page to create.
+        template_name : string
+            The name of the template to use.
 
         Returns
         =======
@@ -211,9 +222,25 @@ class ImageUploader(object):
         try:
             return self.api.page(page_name).get()
         except slumber.exceptions.HttpClientError:
-            print("Creating the new page: {}".format(page_name))
+
+            note_addition = ' with default content'
+
+            if template_name is not None:
+                try:
+                    template_dict = self.api.page('Templates/' +
+                                                  template_name).get()
+                except slumber.exceptions.HttpClientError:
+                    print("There is no template named {}, using default.".format(template_name))
+                else:
+                    page_dict['content'] = template_dict['content']
+                    note_addition = " with template {}".format(template_name)
+
+            print("Creating the new page: {}{}.".format(page_name,
+                                                        note_addition))
+
             self.api.page.post(page_dict, username=self.user_name,
                                api_key=self.api_key)
+
             return self.api.page(page_name).get()
 
     def find_files_in_page(self, page_name):
